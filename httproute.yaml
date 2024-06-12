@@ -1,0 +1,25 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: smplapp1
+  namespace: smplapp
+  annotations:
+    konghq.com/plugins: "otl-plugin"
+spec:
+  parentRefs:
+  - name: kong-priv-gateway
+    namespace: gateway-priv
+    sectionName: proxy-http
+
+  hostnames: ["smplapp1.priv.dev-k8s.div1.opendoor.local"]
+
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /
+    backendRefs:
+    - name: smplapp1
+      kind: Service
+      port: 8080
+      weight: 100

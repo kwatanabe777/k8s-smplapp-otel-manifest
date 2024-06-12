@@ -1,0 +1,173 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: smplapp1
+  namespace: smplapp
+  labels:
+    app: smplapp1
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: smplapp1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: smplapp1
+    spec:
+      containers:
+      - name: smplapp-app
+        image: harbor.dh1.div1.opendoor.local/smplapp/app-otel:latest
+        #imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
+        env:
+        - name: OTEL_PHP_EXCLUDED_URLS
+          value: "healthz,healthcheck"
+        - name: OTEL_PHP_DETECTORS
+          value: all
+        - name: OTEL_PHP_INTERNAL_METRICS_ENABLED
+          value: "true"
+        - name: OTEL_PHP_AUTOLOAD_ENABLED
+          value: "true"
+        - name: OTEL_SERVICE_NAME
+          value: smplapp-app
+        - name: OTEL_TRACES_EXPORTER
+          value: otlp
+        - name: OTEL_METRICS_EXPORTER
+          value: none
+        - name: OTEL_EXPORTER_OTLP_PROTOCOL
+          value: grpc
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: http://otel-collector.tracing.svc.cluster.local:4317
+        #- name: OTEL_EXPORTER_OTLP_PROTOCOL
+        #  #value: http/json
+        #  value: http/protobuf
+        #- name: OTEL_EXPORTER_OTLP_ENDPOINT
+        #  value: http://otel-collector.tracing.svc.cluster.local:4318
+        #- name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+        #  value: http://otel-collector.tracing.svc.cluster.local:4317/v1/traces
+        #- name: OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
+        #  value: http://otel-collector.tracing.svc.cluster.local:4317/v1/metrics
+        - name: OTEL_LOGS_EXPORTER
+          value: none
+        - name: OTEL_PROPAGATORS
+          value: "baggage,tracecontext"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "1024Mi"
+            cpu: "2000m"
+        volumeMounts:
+        - name: fpm-shared
+          mountPath: /var/run/php-fpm
+
+      - name: smplapp-nginx
+        image: harbor.dh1.div1.opendoor.local/smplapp/nginx-otel:latest
+        #imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
+        env:
+        - name: NGINX_ENVSUBST_FILTER
+          value: "^OTEL_.*"
+        - name: OTEL_TRACE
+          value: "on"
+        - name: OTEL_ENDPOINT
+          value: otel-collector.tracing.svc.cluster.local:4317
+        - name: OTEL_SERVICE_NAME
+          value: smplapp-nginx
+        - name: OTEL_TRACE_CONTEXT
+          value: propagate
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        ports:
+        - name: liveness-port
+          containerPort: 8080
+        volumeMounts:
+        - name: fpm-shared
+          mountPath: /var/run/php-fpm
+
+        # probes
+        readinessProbe:
+          httpGet:
+            path: /index.php
+            port: liveness-port
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 2
+        livenessProbe:
+          httpGet:
+            path: /index.php
+            port: liveness-port
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 1
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /index.php
+            port: liveness-port
+          failureThreshold: 6
+          periodSeconds: 10
+
+      volumes:
+      - name: fpm-shared
+        emptyDir: {}
+
+
+      #podMetadata:
+      #  labels:
+      #    owner: infra
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: "app.kubernetes.io/name"
+                operator: In
+                values:
+                - "smplapp1"
+            topologyKey: "kubernetes.io/hostname"
+
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app: smplapp1
+    
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: smplapp1
+  namespace: smplapp
+spec:
+  ports:
+    - port: 8080
+      targetPort: 8080
+  selector:
+    app: smplapp1
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: smplapp1
+spec:
+  #minAvailable: 1
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: smplapp1
+

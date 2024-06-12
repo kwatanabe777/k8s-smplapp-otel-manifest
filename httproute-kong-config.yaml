@@ -1,0 +1,31 @@
+# ref:
+#  https://docs.konghq.com/hub/kong-inc/opentelemetry/
+#  https://docs.konghq.com/hub/kong-inc/opentelemetry/configuration/
+# context: KongPlugin/KongClusterPlugin
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: otl-plugin
+  namespace: smplapp
+    #  annotations:
+    #    kubernetes.io/ingress.class: "kong-monitor"
+    #  labels:
+    #    global: "true"
+config:
+  # jaeger-collector directory
+  #endpoint: "http://jaeger-collector.tracing.svc.cluster.local:4318/v1/traces"
+
+  # open-telemetry-collector
+  endpoint: "http://otel-collector.tracing.svc.cluster.local:4318/v1/traces"
+
+  #resource_attributes:
+  #  service.name: "echosample"
+  connect_timeout: 1000
+  send_timeout: 5000
+  read_timeout: 5000
+  header_type: "b3"    #default: preserve(propagates the incoming trace context)
+  #sampling_rate: 0.01     # 0 to 1 default: tracing_sampling_rate from kong.conf (>=kong gateway v3.6)
+  #http_response_header_for_traceid:  "x-b3-traceid" # return to client this header for debug
+
+plugin: opentelemetry
+
