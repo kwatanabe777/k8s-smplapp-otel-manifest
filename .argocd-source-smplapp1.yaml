@@ -1,4 +1,0 @@
-kustomize:
-  images:
-  - harbor.dh1.div1.opendoor.local/smplapp/app-otel:20240613-276c855
-  - harbor.dh1.div1.opendoor.local/smplapp/nginx-otel:20240613-276c855
