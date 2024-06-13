@@ -1,0 +1,24 @@
+name: create-pr-for-image-updater
+
+on:
+  push:
+    branches:
+      - 'image-updater-**'
+
+jobs:
+  create-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Pull Request
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { repo, owner } = context.repo;
+            const result = await github.rest.pulls.create({
+              title: '[argocd image updater] PODイメージ更新',
+              owner,
+              repo,
+              head: '${{ github.ref_name }}',
+              base: 'main',
+              body: 'Podイメージを自動更新します'
+            });
