@@ -10,6 +10,8 @@ spec:
   - name: kong-priv-gateway
     namespace: gateway-priv
     sectionName: proxy-http
+    group: gateway.networking.k8s.io
+    kind: Gateway
 
   hostnames: ["smplapp1.priv.dev-k8s.div1.opendoor.local"]
 
@@ -21,5 +23,7 @@ spec:
     backendRefs:
     - name: smplapp1
       kind: Service
+      group: ''
       port: 8080
       weight: 100
+
