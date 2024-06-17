@@ -66,6 +66,8 @@ spec:
         volumeMounts:
         - name: fpm-shared
           mountPath: /var/run/php-fpm
+        - name: applogs
+          mountPath: /var/www/webapp/writable/logs
 
       - name: smplapp-nginx
         image: harbor.dh1.div1.opendoor.local/smplapp/nginx-otel:latest
@@ -73,7 +75,7 @@ spec:
         imagePullPolicy: Always
         env:
         - name: NGINX_ENVSUBST_FILTER
-          value: "^OTEL_.*"
+          value: "^OTEL_.*|^FASTCGI_PARAMS_ADDFILE"
         - name: OTEL_TRACE
           value: "on"
         - name: OTEL_ENDPOINT
@@ -82,6 +84,8 @@ spec:
           value: smplapp-nginx
         - name: OTEL_TRACE_CONTEXT
           value: propagate
+        - name: FASTCGI_PARAMS_ADDFILE
+          value: fastcgi_params-codeigniter-development
         resources:
           requests:
             memory: "64Mi"
@@ -119,8 +123,31 @@ spec:
           failureThreshold: 6
           periodSeconds: 10
 
+      # application-log shipping sidecar
+      - name: fluent-bit
+        #image: cr.fluentbit.io/fluent/fluent-bit:3.0.7
+        image: harbor.dh1.div1.opendoor.local/hub.docker.com/fluent/fluent-bit:3.0.7-debug
+        imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+        volumeMounts:
+          - name: applogs
+            mountPath: /opt/logs
+          - name: smplapp1-fb-config
+            mountPath: /fluent-bit/etc
+
       volumes:
       - name: fpm-shared
+        emptyDir: {}
+      - name: smplapp1-fb-config
+        configMap:
+          name: smplapp1-cm-fb-config
+      - name: applogs
         emptyDir: {}
 
 
@@ -160,14 +187,62 @@ spec:
     app: smplapp1
 
 ---
-apiVersion: policy/v1
-kind: PodDisruptionBudget
+apiVersion: v1
+kind: ConfigMap
 metadata:
-  name: smplapp1
-spec:
-  #minAvailable: 1
-  maxUnavailable: 1
-  selector:
-    matchLabels:
-      app: smplapp1
+  name: smplapp1-cm-fb-config
+  namespace: smplapp
+data:
+  fluent-bit.conf: |- 
+    [SERVICE]
+      Config_Watch      On
+      Flush             1
+      Grace             5
+      Daemon            Off
+      Log_Level         info
+      Parsers_File      /fluent-bit/etc/parsers.conf
+      HTTP_Server       Off
+      Hot_Reload        On
+      Storage.Path      /opt/storage
+      Storage.Backlog.Mem_Limit 100MB
+
+    [INPUT]
+      Name              tail
+      Buffer_Max_Size   64k
+      Mem_Buf_Limit     10MB
+      Path              /opt/logs/*.log,/opt/logs/**/*.log,/opt/logs/**/**/*.log
+      Path_Key          filepath
+      #Parser            codeigniter
+      Tag               smplapp1
+      Ignore_Older      2d
+      Db                /opt/logs.db
+
+    #[FILTER]
+    #  Name              parser
+    #  Match             *
+    #  Key_Name          filepath
+    #  Parser            codeigniter_timeparser
+    #  Parser            filepath_extractor
+    #  Preserve_Key      On
+    #  Reserve_Data      On
+
+    [OUTPUT]
+      Name              stdout
+      Match             *
+    [OUTPUT]
+      Name              loki
+      Match             *
+      Host              loki-gateway.logbase.svc.cluster.local
+      port              80
+      labels            job=fluentbit,app=smplapp1,filepath=$filepath
+      auto_kubernetes_labels On
+      line_format       json
+
+  parsers.conf: |-
+    [PARSER]
+      Name              filepath_extractor
+      Format            regex
+      Regex             ^(?<filepath>.*)$
+    [PARSER]
+      Name              codeigniter_timeparser
 
