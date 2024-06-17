@@ -25,6 +25,8 @@ spec:
         #imagePullPolicy: IfNotPresent
         imagePullPolicy: Always
         env:
+        - name: TZ
+          value: GMT-9
         - name: OTEL_PHP_EXCLUDED_URLS
           value: "healthz,healthcheck"
         - name: OTEL_PHP_DETECTORS
@@ -66,8 +68,10 @@ spec:
         volumeMounts:
         - name: fpm-shared
           mountPath: /var/run/php-fpm
-        - name: applogs
+        - name: appstore-logs
           mountPath: /var/www/webapp/writable/logs
+        - name: appstore-debugbar
+          mountPath: /var/www/webapp/writable/debugbar
 
       - name: smplapp-nginx
         image: harbor.dh1.div1.opendoor.local/smplapp/nginx-otel:latest
@@ -101,21 +105,21 @@ spec:
           mountPath: /var/run/php-fpm
 
         # probes
-        readinessProbe:
-          httpGet:
-            path: /index.php
-            port: liveness-port
-          initialDelaySeconds: 5
-          periodSeconds: 5
-          timeoutSeconds: 2
         livenessProbe:
           httpGet:
             path: /index.php
             port: liveness-port
           initialDelaySeconds: 10
           periodSeconds: 10
-          timeoutSeconds: 1
+          timeoutSeconds: 3
           failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /index.php
+            port: liveness-port
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
         startupProbe:
           httpGet:
             path: /index.php
@@ -128,6 +132,9 @@ spec:
         #image: cr.fluentbit.io/fluent/fluent-bit:3.0.7
         image: harbor.dh1.div1.opendoor.local/hub.docker.com/fluent/fluent-bit:3.0.7-debug
         imagePullPolicy: IfNotPresent
+        env:
+        - name: TZ
+          value: GMT-9
         resources:
           requests:
             memory: "64Mi"
@@ -136,19 +143,57 @@ spec:
             memory: "128Mi"
             cpu: "100m"
         volumeMounts:
-          - name: applogs
-            mountPath: /opt/logs
+          - name: appstore-logs
+            mountPath: /appstore/writable/logs
           - name: smplapp1-fb-config
             mountPath: /fluent-bit/etc
 
+      # application-log housekeeping sidecar
+      - name: smplapp1-delete-logs
+        image: harbor.dh1.div1.opendoor.local/hub.docker.com/ubuntu:24.04
+        env:
+        - name: TZ
+          value: GMT-9
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "20m"
+          limits:
+            memory: "32Mi"
+            cpu: "50m"
+        command: ["bash", "-c", "--"]
+        args: ["while :; do sh /appstore/deletelogs/log_compress.sh; sleep 300; done;"]
+        volumeMounts:
+          - name: appstore-logs
+            mountPath: /appstore/writable/logs
+          - name: appstore-debugbar
+            mountPath: /appstore/writable/debugbar
+          - name: smplapp1-delete-logs-scripts
+            mountPath: /appstore/deletelogs
+
+      # Pod shared volumes
       volumes:
       - name: fpm-shared
+        emptyDir: {}
+      - name: appstore-logs
+        emptyDir: {}
+      - name: appstore-debugbar
         emptyDir: {}
       - name: smplapp1-fb-config
         configMap:
           name: smplapp1-cm-fb-config
-      - name: applogs
-        emptyDir: {}
+      - name: smplapp1-delete-logs-scripts
+        configMap:
+          name: smplapp1-cm-delete-logs-scripts
+          items:
+          - key: log_compress.sh
+            path: log_compress.sh
+            mode: 0755
+          - key: log_compress.conf
+            path: log_compress.conf
+            mode: 0644
+
+
 
 
       #podMetadata:
@@ -172,7 +217,7 @@ spec:
         labelSelector:
           matchLabels:
             app: smplapp1
-    
+
 ---
 apiVersion: v1
 kind: Service
@@ -203,19 +248,19 @@ data:
       Parsers_File      /fluent-bit/etc/parsers.conf
       HTTP_Server       Off
       Hot_Reload        On
-      Storage.Path      /opt/storage
+      Storage.Path      /appstore/fb-storage
       Storage.Backlog.Mem_Limit 100MB
 
     [INPUT]
       Name              tail
       Buffer_Max_Size   64k
       Mem_Buf_Limit     10MB
-      Path              /opt/logs/*.log,/opt/logs/**/*.log,/opt/logs/**/**/*.log
+      Path              /appstore/writable/logs/*.log,/appstore/writable/logs/**/*.log,/appstore/writable/logs/**/**/*.log
       Path_Key          filepath
       #Parser            codeigniter
       Tag               smplapp1
       Ignore_Older      2d
-      Db                /opt/logs.db
+      Db                /appstore/logs.db
 
     #[FILTER]
     #  Name              parser
@@ -245,4 +290,21 @@ data:
       Regex             ^(?<filepath>.*)$
     [PARSER]
       Name              codeigniter_timeparser
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: smplapp1-cm-delete-logs-scripts
+  namespace: smplapp
+data:
+  log_compress.conf: |-
+    # test
+  log_compress.sh: |-
+    #!/bin/bash
+    # delete logs older than 1 days
+    #find /appstore/writable -type f -mtime +1 -exec rm -f {} \;
+    # delete logs older than 12 hours(720 minutes)
+    find /appstore/writable -type f -mmin +720 -exec rm -f {} \;
+    exit $?
 
