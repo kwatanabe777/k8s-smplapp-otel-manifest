@@ -304,7 +304,7 @@ data:
     #!/bin/bash
     # delete logs older than 1 days
     #find /appstore/writable -type f -mtime +1 -exec rm -f {} \;
-    # delete logs older than 12 hours(720 minutes)
-    find /appstore/writable -type f -mmin +720 -exec rm -f {} \;
+    find /appstore/writable/debugbar -type f -mmin +60 -exec rm -f {} \;
+    find /appstore/writable/logs -type f -mtime +1 -exec rm -f {} \;
     exit $?
 
