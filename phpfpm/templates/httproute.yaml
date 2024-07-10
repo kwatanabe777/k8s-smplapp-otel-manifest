@@ -1,0 +1,29 @@
+{{- if .Values.gateways.enabled }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ include "phpfpm.fullname" . }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "phpfpm.labels" . | nindent 4 }}
+  {{- with .Values.gateways.annotations }}
+  annotations:
+    {{- toYaml . | nindent 6 }}
+  {{- end }}
+spec:
+  {{- with .Values.gateways.parentRefs }}
+  parentRefs:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+
+  {{- with .Values.gateways.hostnames }}
+  hostnames:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+
+  {{- with .Values.gateways.rules }}
+  rules:
+    {{- toYaml . | nindent 4 }}
+  {{- end -}}
+{{- end }}

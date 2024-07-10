@@ -1,0 +1,182 @@
+replicaCount: 1
+
+autoscaling:
+  enabled: false
+
+phpfpm:
+  image:
+    repository: harbor.dh1.div1.opendoor.local/smplapp-a/app-otel
+    tag: "latest"
+    pullPolicy: Always
+  extraEnv:
+  - name: XDEBUG_ENABLED
+    value: "1"
+  - name: XDEBUG_CLIENT_HOST
+    value: "host.k3d.internal"
+  - name: XDEBUG_CLIENT_PORT
+    value: "9003"
+  - name: DEV_ENABLED
+    value: "1"
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "50m"
+    limits:
+      memory: "1024Mi"
+      cpu: "2000m"
+  volumeMounts:
+  - name: fpm-shared
+    mountPath: /var/run/php-fpm
+  - name: webapp
+    mountPath: /var/www/webapp
+  - name: xdebug
+    mountPath: /tmp/xdebug
+
+nginx:
+  image:
+    repository: harbor.dh1.div1.opendoor.local/smplapp-a/web-otel
+    tag: "latest"
+    pullPolicy: Always
+  extaEnv:
+  - name: FASTCGI_PARAMS_ADDFILE
+    value: fastcgi_params-codeigniter-development
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "50m"
+    limits:
+      memory: "128Mi"
+      cpu: "500m"
+  volumeMounts:
+  - name: fpm-shared
+    mountPath: /var/run/php-fpm
+  - name: webapp-public
+    mountPath: /var/www/public
+
+sidecar:
+  fluentBit:
+    enabled: true
+    image:
+      repository: harbor.dh1.div1.opendoor.local/hub.docker.com/fluent/fluent-bit
+      #tag: "3.0.7-debug"
+      tag: "3.0.7"
+      pullPolicy: IfNotPresent
+    volumeMounts:
+    - name: webapp
+      mountPath: /appstore/writable/logs
+      subPath: writable/logs
+    - name: fluentbit-config
+      mountPath: /fluent-bit/etc
+
+  helper:
+    enabled: true
+    volumeMounts:
+    - name: webapp
+      mountPath: /appstore/writable/logs
+      subPath: writable/logs
+    - name: webapp
+      mountPath: /appstore/writable/debugbar
+      subPath: writable/debugbar
+    - name: delete-logs-scripts
+      mountPath: /appstore/deletelogs
+
+volumes:
+- name: fpm-shared
+  emptyDir: {}
+- name: webapp
+  hostPath:
+    path: /data/pv/k8s-smplapp-otel/webapp
+    type: Directory
+- name: xdebug
+  hostPath:
+    path: /data/pv/k8s-smplapp-otel/xdebug
+    type: Directory
+- name: webapp-public
+  hostPath:
+    path: /data/pv/k8s-smplapp-otel/webapp/public
+    type: Directory
+- name: fluentbit-config
+  configMap:
+    name: cm-fluentbit-config
+- name: delete-logs-scripts
+  configMap:
+    name: cm-delete-logs-scripts
+    items:
+    - key: log_compress.sh
+      path: log_compress.sh
+      mode: 0755
+    - key: log_compress.conf
+      path: log_compress.conf
+      mode: 0644
+
+configMaps:
+- name: cm-fluentbit-config
+  data:
+    fluent-bit.conf: |-
+      [SERVICE]
+        Config_Watch      On
+        Flush             1
+        Grace             5
+        Daemon            Off
+        Log_Level         info
+        Parsers_File      /fluent-bit/etc/parsers.conf
+        HTTP_Server       Off
+        Hot_Reload        On
+        Storage.Path      /appstore/fb-storage
+        Storage.Backlog.Mem_Limit 100MB
+      
+      [INPUT]
+        Name              tail
+        Buffer_Max_Size   64k
+        Mem_Buf_Limit     10MB
+        Path              /appstore/writable/logs/*.log,/appstore/writable/logs/**/*.log,/appstore/writable/logs/**/**/*.log
+        Path_Key          filepath
+        #Parser            codeigniter
+        Tag               smplapp
+        Ignore_Older      2d
+        Db                /appstore/logs.db
+      
+      #[FILTER]
+      #  Name              parser
+      #  Match             *
+      #  Key_Name          filepath
+      #  Parser            codeigniter_timeparser
+      #  Parser            filepath_extractor
+      #  Preserve_Key      On
+      #  Reserve_Data      On
+      
+      [OUTPUT]
+        Name              stdout
+        Match             *
+      [OUTPUT]
+        Name              loki
+        Match             *
+        Host              loki.logbase.svc.cluster.local
+        port              3100
+        labels            job=fluentbit,app=smplapp,filepath=$filepath
+        auto_kubernetes_labels On
+        line_format       json
+      
+    parsers.conf: |-
+      [PARSER]
+        Name              filepath_extractor
+        Format            regex
+        Regex             ^(?<filepath>.*)$
+      [PARSER]
+        Name              codeigniter_timeparser
+
+- name: cm-delete-logs-scripts
+  data:
+    log_compress.conf: |-
+      # Configuration file for log_compress.sh
+    log_compress.sh: |-
+      #!/bin/bash
+      # delete logs older than 1 days
+      #find /appstore/writable -type f -mtime +1 -exec rm -f {} \;
+      find /appstore/writable/debugbar -type f -mmin +60 -exec rm -f {} \;
+      find /appstore/writable/logs -type f -mtime +1 -exec rm -f {} \;
+      exit $?
+
+gateways:
+  enabled: true
+  hostnames: ["smplapp.priv.local-k8s.div1.opendoor.local"]

@@ -1,0 +1,55 @@
+replicaCount: 3
+
+autoscaling:
+  enabled: false
+
+phpfpm:
+  image:
+    repository: harbor.dh1.div1.opendoor.local/smplapp-a/app-otel
+    tag: "latest"
+    pullPolicy: Always
+  extraEnv:
+  - name: XDEBUG_ENABLED
+    value: "0"
+  - name: DEV_ENABLED
+    value: "0"
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "200m"
+    limits:
+      memory: "1024Mi"
+      cpu: "2000m"
+
+nginx:
+  image:
+    repository: harbor.dh1.div1.opendoor.local/smplapp-a/web-otel
+    tag: "latest"
+    pullPolicy: Always
+  extraEnv:
+  - name: FASTCGI_PARAMS_ADDFILE
+    value: fastcgi_params-codeigniter-development
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "100m"
+    limits:
+      memory: "128Mi"
+      cpu: "500m"
+
+sidecar:
+  fluentBit:
+    enabled: true
+    image:
+      repository: harbor.dh1.div1.opendoor.local/hub.docker.com/fluent/fluent-bit
+      #tag: "3.0.7-debug"
+      tag: "3.0.7"
+      pullPolicy: IfNotPresent
+
+  helper:
+    enabled: true
+
+gateways:
+  enabled: true
+  hostnames: ["smplapp.priv.dev-k8s.div1.opendoor.local"]
+

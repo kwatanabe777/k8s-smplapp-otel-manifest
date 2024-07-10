@@ -1,0 +1,35 @@
+{{/* name rename */}}
+{{- $rootval := . -}}
+{{- $prefix := "" -}}
+{{- if $.Values.volumesAutoPrefix -}}
+  {{- $prefix = include "phpfpm.fullname" . -}}
+{{- end -}}
+{{- $configMaps := (include "phpfpm.recursiveRename" (dict "prefix" $prefix "values" .Values.configMaps) | fromYamlArray ) -}}
+{{- range $i, $value := $configMaps }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $value.name }}
+  namespace: {{ $.Release.Namespace }}
+data:
+  {{- toYaml $value.data | nindent 2 }}
+{{- end }}
+
+{{/* extraConfigMaps */}}
+{{- $prefix := "" -}}
+{{- if $.Values.volumesAutoPrefix -}}
+  {{- $prefix = include "phpfpm.fullname" . -}}
+{{- end -}}
+{{- $configMaps := (include "phpfpm.recursiveRename" (dict "prefix" $prefix "values" .Values.extraConfigMaps) | fromYamlArray ) -}}
+{{- range $i, $value := $configMaps }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $value.name }}
+  namespace: {{ $.Release.Namespace }}
+data:
+  {{- toYaml $value.data | nindent 2 }}
+{{- end }}
+

@@ -1,0 +1,276 @@
+{{- $rootval := . -}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "phpfpm.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "phpfpm.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "phpfpm.selectorLabels" . | nindent 6 }}
+  strategy:
+    {{- toYaml .Values.strategy | nindent 4 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "phpfpm.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+
+    spec:
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+      #### php-fpm container
+      - name: {{ .Values.phpfpm.name }}
+        securityContext:
+          {{- toYaml .Values.phpfpm.securityContext | nindent 10 }}
+        image: "{{ .Values.phpfpm.image.repository }}:{{ .Values.phpfpm.image.tag | default .CahrtAppVersion}}"
+        imagePullPolicy: {{ .Values.phpfpm.image.pullPolicy }}
+        {{- with .Values.phpfpm.env }}
+        env:
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.phpfpm.extraEnv }}
+          {{- toYaml .Values.phpfpm.extraEnv | nindent 8 }}
+        {{- end }}
+        {{- with .Values.phpfpm.ports }}
+        ports:
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.phpfpm.livenessProbe }}
+        livenessProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.phpfpm.readinessProbe }}
+        readinessProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.phpfpm.startupProbe }}
+        startupProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.phpfpm.resources | nindent 10 }}
+        {{- with .Values.phpfpm.volumeMounts }}
+        volumeMounts:
+          {{- $prefix := "" -}}
+          {{- if $.Values.volumesAutoPrefix -}}
+            {{- $prefix = include "phpfpm.fullname" $rootval -}}
+          {{- end -}}
+          {{- include "phpfpm.recursiveRename" (dict "prefix" $prefix "values" .) | nindent 8 }}
+        {{- end }}
+        {{- if $.Values.phpfpm.extraVolumeMounts -}}
+          {{- $prefix := "" -}}
+          {{- if $.Values.volumesAutoPrefix -}}
+            {{- $prefix = include "phpfpm.fullname" $rootval -}}
+          {{- end -}}
+          {{- include "phpfpm.recursiveRename" (dict "prefix" $prefix "values" $.Values.phpfpm.extraVolumeMounts) | nindent 8 }}
+        {{- end }}
+
+      #### nginx container
+      - name: {{ .Values.nginx.name }}
+        securityContext:
+          {{- toYaml .Values.nginx.securityContext | nindent 10 }}
+        image: "{{ .Values.nginx.image.repository }}:{{ .Values.nginx.image.tag | default .CahrtAppVersion}}"
+        imagePullPolicy: {{ .Values.nginx.image.pullPolicy }}
+        {{- with .Values.nginx.env }}
+        env:
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.nginx.extraEnv }}
+          {{- toYaml .Values.nginx.extraEnv | nindent 8 }}
+        {{- end }}
+
+        {{- with .Values.nginx.ports }}
+        ports:
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.nginx.livenessProbe }}
+        livenessProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.nginx.readinessProbe }}
+        readinessProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.nginx.startupProbe }}
+        startupProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.nginx.resources | nindent 10 }}
+        {{- with .Values.nginx.volumeMounts }}
+        volumeMounts:
+          {{- $prefix := "" -}}
+          {{- if $.Values.volumesAutoPrefix -}}
+            {{- $prefix = include "phpfpm.fullname" $rootval -}}
+          {{- end -}}
+          {{- include "phpfpm.recursiveRename" (dict "prefix" $prefix "values" .) | nindent 8 }}
+        {{- end }}
+        {{- if $.Values.nginx.extraVolumeMounts -}}
+          {{- $prefix := "" -}}
+          {{- if $.Values.volumesAutoPrefix -}}
+            {{- $prefix = include "phpfpm.fullname" $rootval -}}
+          {{- end -}}
+          {{- include "phpfpm.recursiveRename" (dict "prefix" $prefix "values" $.Values.nginx.extraVolumeMounts) | nindent 8 }}
+        {{- end }}
+
+      {{- if .Values.sidecar.fluentBit.enabled }}
+      ##### application-log shipping sidecar
+      - name: {{ .Values.sidecar.fluentBit.name }}
+        securityContext:
+          {{- toYaml .Values.sidecar.fluentBit.securityContext | nindent 10 }}
+        image: "{{ .Values.sidecar.fluentBit.image.repository }}:{{ .Values.sidecar.fluentBit.image.tag | default .CahrtAppVersion}}"
+        imagePullPolicy: {{ .Values.sidecar.fluentBit.image.pullPolicy }}
+        {{- with .Values.sidecar.fluentBit.env }}
+        env:
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+          {{- if .Values.sidecar.fluentBit.extraEnv }}
+          {{- toYaml .Values.sidecar.fluentBit.extraEnv | nindent 8 }}
+          {{- end }}
+
+        {{- with .Values.sidecar.fluentBit.ports }}
+        ports:
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.sidecar.fluentBit.livenessProbe }}
+        livenessProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.sidecar.fluentBit.readinessProbe }}
+        readinessProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.sidecar.fluentBit.startupProbe }}
+        startupProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.sidecar.fluentBit.resources | nindent 10 }}
+        {{- with .Values.sidecar.fluentBit.volumeMounts }}
+        volumeMounts:
+          {{- $prefix := "" -}}
+          {{- if $.Values.volumesAutoPrefix -}}
+            {{- $prefix = include "phpfpm.fullname" $rootval -}}
+          {{- end -}}
+          {{- include "phpfpm.recursiveRename" (dict "prefix" $prefix "values" .) | nindent 8 }}
+        {{- end }}
+        {{- if $.Values.sidecar.fluentBit.extraVolumeMounts -}}
+          {{- $prefix := "" -}}
+          {{- if $.Values.volumesAutoPrefix -}}
+            {{- $prefix = include "phpfpm.fullname" $rootval -}}
+          {{- end -}}
+          {{- include "phpfpm.recursiveRename" (dict "prefix" $prefix "values" $.Values.sidecar.fluentBit.extraVolumeMounts) | nindent 8 }}
+        {{- end }}
+      {{- end }}
+
+      {{- if .Values.sidecar.helper.enabled }}
+      ##### application-log housekeeping sidecar
+      - name: {{ .Values.sidecar.helper.name }}
+        securityContext:
+          {{- toYaml .Values.sidecar.helper.securityContext | nindent 10 }}
+        image: "{{ .Values.sidecar.helper.image.repository }}:{{ .Values.sidecar.helper.image.tag | default .CahrtAppVersion}}"
+        imagePullPolicy: {{ .Values.sidecar.helper.image.pullPolicy }}
+        {{- with .Values.sidecar.helper.env }}
+        env:
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+          {{- if .Values.sidecar.helper.extraEnv }}
+          {{- toYaml .Values.sidecar.helper.extraEnv | nindent 8 }}
+          {{- end }}
+        {{- with .Values.sidecar.helper.command }}
+        command:
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.sidecar.helper.args }}
+        args:
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.sidecar.helper.ports }}
+        ports:
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.sidecar.helper.livenessProbe }}
+        livenessProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.sidecar.helper.readinessProbe }}
+        readinessProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.sidecar.helper.startupProbe }}
+        startupProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.sidecar.helper.resources | nindent 10 }}
+        {{- with .Values.sidecar.helper.volumeMounts }}
+        volumeMounts:
+          {{- $prefix := "" -}}
+          {{- if $.Values.volumesAutoPrefix -}}
+            {{- $prefix = include "phpfpm.fullname" $rootval -}}
+          {{- end -}}
+          {{- include "phpfpm.recursiveRename" (dict "prefix" $prefix "values" .) | nindent 8 }}
+        {{- end }}
+        {{- if $.Values.sidecar.helper.extraVolumeMounts -}}
+          {{- $prefix := "" -}}
+          {{- if $.Values.volumesAutoPrefix -}}
+            {{- $prefix = include "phpfpm.fullname" $rootval -}}
+          {{- end -}}
+          {{- include "phpfpm.recursiveRename" (dict "prefix" $prefix "values" $.Values.sidecar.helper.extraVolumeMounts) | nindent 8 }}
+        {{- end }}
+      {{- end }}
+
+      {{- with .Values.volumes }}
+      ##### Pod shared volumes
+      volumes:
+        {{- $prefix := "" -}}
+        {{- if $.Values.volumesAutoPrefix -}}
+          {{- $prefix = include "phpfpm.fullname" $rootval -}}
+        {{- end -}}
+        {{- include "phpfpm.recursiveRename" (dict "prefix" $prefix "values" .) | nindent 6 }}
+      {{- end }}
+      {{- if $.Values.extraVolumes -}}
+        {{- $prefix := "" -}}
+        {{- if $.Values.volumesAutoPrefix -}}
+          {{- $prefix = include "phpfpm.fullname" $rootval -}}
+        {{- end -}}
+        {{- include "phpfpm.recursiveRename" (dict "prefix" $prefix "values" $.Values.extraVolumes) | nindent 6 }}
+      {{- end }}
+
+      #podMetadata:
+      #  labels:
+      #    owner: infra
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+

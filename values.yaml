@@ -1,0 +1,446 @@
+# Default values for phpfpm.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+###############################################################################
+# names overrides
+nameOverride: ""
+fullnameOverride: ""
+## auto 'podname' prefix addition to volume name & configmaps name
+#  to noduplicate the names in multi pods in one namespace
+volumesAutoPrefix: true
+
+###############################################################################
+# If HPA enabled, replicaCount would not be used.
+#
+replicaCount: 3
+
+###############################################################################
+# HPA
+#
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxUnavailable: 1
+
+
+###############################################################################
+# containers
+#
+phpfpm:
+  name: php-fpm
+  securityContext: {}
+    # capabilities:
+    #   drop:
+    #   - ALL
+    # readOnlyRootFilesystem: true
+    # runAsNonRoot: true
+    # runAsUser: 1000
+  image:
+    repository: harbor.dh1.div1.opendoor.local/smplapp-a/app-otel
+    tag: "latest"
+    pullPolicy: Always
+
+  env:
+  - name: TZ
+    value: GMT-9
+  - name: OTEL_PHP_EXCLUDED_URLS
+    value: "healthz,healthcheck"
+  - name: OTEL_PHP_DETECTORS
+    value: all
+  - name: OTEL_PHP_INTERNAL_METRICS_ENABLED
+    value: "true"
+  - name: OTEL_PHP_AUTOLOAD_ENABLED
+    value: "true"
+  - name: OTEL_SERVICE_NAME
+    value: smplapp-app
+  - name: OTEL_TRACES_EXPORTER
+    value: otlp
+  - name: OTEL_METRICS_EXPORTER
+    value: none
+  - name: OTEL_EXPORTER_OTLP_PROTOCOL
+    value: grpc
+  - name: OTEL_EXPORTER_OTLP_ENDPOINT
+    value: http://otel-collector.tracing.svc.cluster.local:4317
+  #- name: OTEL_EXPORTER_OTLP_PROTOCOL
+  #  #value: http/json
+  #  value: http/protobuf
+  #- name: OTEL_EXPORTER_OTLP_ENDPOINT
+  #  value: http://otel-collector.tracing.svc.cluster.local:4318
+  #- name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+  #  value: http://otel-collector.tracing.svc.cluster.local:4317/v1/traces
+  #- name: OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
+  #  value: http://otel-collector.tracing.svc.cluster.local:4317/v1/metrics
+  - name: OTEL_LOGS_EXPORTER
+    value: none
+  - name: OTEL_PROPAGATORS
+    value: "baggage,tracecontext"
+
+  extraEnv: []
+
+  ports: []
+
+  livenessProbe: {}
+  readinessProbe: {}
+  startupProbe: {}
+
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "200m"
+    limits:
+      memory: "1024Mi"
+      cpu: "2000m"
+
+  volumeMounts:
+  - name: fpm-shared
+    mountPath: /var/run/php-fpm
+  - name: appstore-logs
+    mountPath: /var/www/webapp/writable/logs
+  - name: appstore-debugbar
+    mountPath: /var/www/webapp/writable/debugbar
+
+  extraVolumeMounts: []
+
+nginx:
+  name: nginx
+  securityContext: {}
+    # capabilities:
+    #   drop:
+    #   - ALL
+    # readOnlyRootFilesystem: true
+    # runAsNonRoot: true
+    # runAsUser: 1000
+
+  image:
+    repository: harbor.dh1.div1.opendoor.local/smplapp-a/web-otel
+    tag: "latest"
+    pullPolicy: Always
+
+  env:
+  - name: NGINX_ENVSUBST_FILTER
+    value: "^OTEL_.*|^FASTCGI_PARAMS_ADDFILE"
+  - name: OTEL_TRACE
+    value: "on"
+  - name: OTEL_ENDPOINT
+    value: otel-collector.tracing.svc.cluster.local:4317
+  - name: OTEL_SERVICE_NAME
+    value: smplapp-nginx
+  - name: OTEL_TRACE_CONTEXT
+    value: propagate
+  - name: FASTCGI_PARAMS_ADDFILE
+    value: fastcgi_params-codeigniter-development
+
+  extraEnv: []
+
+  ports:
+  - name: http-port
+    containerPort: 8080
+  - name: liveness-port
+    containerPort: 8080
+
+  livenessProbe:
+    httpGet:
+      path: /healthcheck
+      port: liveness-port
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+  readinessProbe:
+    httpGet:
+      path: /healthcheck
+      port: liveness-port
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+  startupProbe:
+    httpGet:
+      path: /healthcheck
+      port: liveness-port
+    failureThreshold: 6
+    periodSeconds: 10
+
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "100m"
+    limits:
+      memory: "128Mi"
+      cpu: "500m"
+
+  volumeMounts:
+  - name: fpm-shared
+    mountPath: /var/run/php-fpm
+
+  extraVolumeMounts: []
+
+sidecar:
+  fluentBit:
+    enabled: true
+    name: fluent-bit
+    securityContext: {}
+      # capabilities:
+      #   drop:
+      #   - ALL
+      # readOnlyRootFilesystem: true
+      # runAsNonRoot: true
+      # runAsUser: 1000
+ 
+    image:
+      repository: harbor.dh1.div1.opendoor.local/hub.docker.com/fluent/fluent-bit
+      #tag: "3.0.7-debug"
+      tag: "3.0.7"
+      pullPolicy: IfNotPresent
+
+    env:
+    - name: TZ
+      value: GMT-9
+
+    extraEnv: []
+
+    ports: []
+
+    livenessProbe: {}
+    readinessProbe: {}
+    startupProbe: {}
+
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "50m"
+      limits:
+        memory: "128Mi"
+        cpu: "100m"
+
+    volumeMounts:
+    - name: appstore-logs
+      mountPath: /appstore/writable/logs
+    - name: fluentbit-config
+      mountPath: /fluent-bit/etc
+    extraVolumeMounts: []
+
+  helper:
+    enabled: true
+    name: delete-logs
+    securityContext: {}
+      # capabilities:
+      #   drop:
+      #   - ALL
+      # readOnlyRootFilesystem: true
+      # runAsNonRoot: true
+      # runAsUser: 1000
+
+    image:
+      repository: harbor.dh1.div1.opendoor.local/hub.docker.com/ubuntu
+      tag: "24.04"
+      pullPolicy: IfNotPresent
+
+    env:
+    - name: TZ
+      value: GMT-9
+
+    extraEnv: []
+
+    command: ["bash", "-c", "--"]
+    args: ["while :; do sh /appstore/deletelogs/log_compress.sh; sleep 300; done;"]
+
+    ports: []
+
+    livenessProbe: {}
+    readinessProbe: {}
+    startupProbe: {}
+
+    resources:
+      requests:
+        memory: "32Mi"
+        cpu: "20m"
+      limits:
+        memory: "32Mi"
+        cpu: "50m"
+
+    volumeMounts:
+    - name: appstore-logs
+      mountPath: /appstore/writable/logs
+    - name: appstore-debugbar
+      mountPath: /appstore/writable/debugbar
+    - name: delete-logs-scripts
+      mountPath: /appstore/deletelogs
+
+    extraVolumeMounts: []
+
+# Additional volumes on the output Deployment definition.
+volumes:
+- name: fpm-shared
+  emptyDir: {}
+- name: appstore-logs
+  emptyDir: {}
+- name: appstore-debugbar
+  emptyDir: {}
+- name: fluentbit-config
+  configMap:
+    name: cm-fluentbit-config
+- name: delete-logs-scripts
+  configMap:
+    name: cm-delete-logs-scripts
+    items:
+    - key: log_compress.sh
+      path: log_compress.sh
+      mode: 0755
+    - key: log_compress.conf
+      path: log_compress.conf
+      mode: 0644
+
+extraVolumes: []
+
+###############################################################################
+# pods
+#
+podAnnotations: {}
+podLabels:
+  version: v1
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+
+nodeSelector: {}
+
+affinity:
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+    - labelSelector:
+        matchExpressions:
+        - key: app
+          operator: In
+          values:
+          - smplapp-phpfpm
+      topologyKey: "kubernetes.io/hostname"
+
+topologySpreadConstraints:
+- maxSkew: 1
+  topologyKey: kubernetes.io/hostname
+  whenUnsatisfiable: ScheduleAnyway
+  labelSelector:
+    matchLabels:
+      app: smplapp-phpfpm
+
+tolerations: []
+
+
+###############################################################################
+# ConfigMaps
+#
+configMaps:
+- name: cm-fluentbit-config
+  data:
+    fluent-bit.conf: |-
+      [SERVICE]
+        Config_Watch      On
+        Flush             1
+        Grace             5
+        Daemon            Off
+        Log_Level         info
+        Parsers_File      /fluent-bit/etc/parsers.conf
+        HTTP_Server       Off
+        Hot_Reload        On
+        Storage.Path      /appstore/fb-storage
+        Storage.Backlog.Mem_Limit 100MB
+      
+      [INPUT]
+        Name              tail
+        Buffer_Max_Size   64k
+        Mem_Buf_Limit     10MB
+        Path              /appstore/writable/logs/*.log,/appstore/writable/logs/**/*.log,/appstore/writable/logs/**/**/*.log
+        Path_Key          filepath
+        #Parser            codeigniter
+        Tag               smplapp
+        Ignore_Older      2d
+        Db                /appstore/logs.db
+      
+      #[FILTER]
+      #  Name              parser
+      #  Match             *
+      #  Key_Name          filepath
+      #  Parser            codeigniter_timeparser
+      #  Parser            filepath_extractor
+      #  Preserve_Key      On
+      #  Reserve_Data      On
+      
+      [OUTPUT]
+        Name              stdout
+        Match             *
+      [OUTPUT]
+        Name              loki
+        Match             *
+        Host              loki-gateway.logbase.svc.cluster.local
+        port              80
+        labels            job=fluentbit,app=smplapp,filepath=$filepath
+        auto_kubernetes_labels On
+        line_format       json
+      
+    parsers.conf: |-
+      [PARSER]
+        Name              filepath_extractor
+        Format            regex
+        Regex             ^(?<filepath>.*)$
+      [PARSER]
+        Name              codeigniter_timeparser
+
+- name: cm-delete-logs-scripts
+  data:
+    log_compress.conf: |-
+      # Configuration file for log_compress.sh
+    log_compress.sh: |-
+      #!/bin/bash
+      # delete logs older than 1 days
+      #find /appstore/writable -type f -mtime +1 -exec rm -f {} \;
+      find /appstore/writable/debugbar -type f -mmin +60 -exec rm -f {} \;
+      find /appstore/writable/logs -type f -mtime +1 -exec rm -f {} \;
+      exit $?
+
+extraConfigMaps: []
+
+
+###############################################################################
+# Service
+#
+service:
+  portname: http-8080
+  type: ClusterIP
+  port: 8080
+  targetPort: 8080
+
+
+###############################################################################
+# GatewayAPI
+#
+gateways:
+  enabled: true
+  annotations:
+    konghq.com/plugins: "otl-plugin"
+  parentRefs:
+  - name: kong-priv-gateway
+    namespace: gateway-priv
+    sectionName: proxy-http
+    group: gateway.networking.k8s.io
+    kind: Gateway
+  hostnames: ["smplapp.priv.dev-k8s.div1.opendoor.local"]
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /
+    backendRefs:
+    - name: smplapp-phpfpm
+      kind: Service
+      group: ''
+      port: 8080
+      weight: 100
