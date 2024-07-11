@@ -413,11 +413,14 @@ extraConfigMaps: []
 # Service
 #
 service:
+  annotations:
+    konghq.com/upstream-policy: "consistent-hashing"
   portname: http-8080
   type: ClusterIP
   port: 8080
   targetPort: 8080
-
+  protocol: TCP
+  externalTrafficPolicy: Cluster
 
 ###############################################################################
 # GatewayAPI

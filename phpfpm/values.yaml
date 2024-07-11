@@ -413,11 +413,16 @@ extraConfigMaps: []
 # Service
 #
 service:
+  annotations: {}
   portname: http-8080
   type: ClusterIP
   port: 8080
   targetPort: 8080
-
+  protocol: TCP
+  externalTrafficPolicy: ""
+  loadBalancerIP: ""
+  loadBalancerClass: ""
+  sessionAffinity: None
 
 ###############################################################################
 # GatewayAPI

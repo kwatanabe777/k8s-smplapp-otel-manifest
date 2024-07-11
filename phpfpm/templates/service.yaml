@@ -4,6 +4,10 @@ kind: Service
 metadata:
   name: {{ include "phpfpm.fullname" . }}
   namespace: {{ .Release.Namespace }}
+  {{- with .Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   labels:
     {{- include "phpfpm.labels" . | nindent 4 }}
 spec:
@@ -11,7 +15,19 @@ spec:
   ports:
     - port: {{ .Values.service.port }}
       targetPort: {{ .Values.service.targetPort }}
-      protocol: TCP
+      protocol: {{ .Values.service.protocol }}
       name: {{ .Values.service.portname }}
+  {{ with .Values.service.externalTrafficPolicy }}
+  externalTrafficPolicy: {{ . }}
+  {{- end }}
+  {{ with .Values.service.loadBalancerIP }}
+  loadBalancerClass: {{ . }}
+  {{- end }}
+  {{ with .Values.service.loadBalancerIP }}
+  loadBalancerIP: {{ . }}
+  {{- end }}
+  {{- with .Values.service.loadBalancerSourceRanges }}
+  sessionAffinity: {{ . }}
+  {{- end }}
   selector:
     {{- include "phpfpm.selectorLabels" . | nindent 4 }}
