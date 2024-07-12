@@ -3,6 +3,10 @@ replicaCount: 1
 autoscaling:
   enabled: false
 
+strategy:
+  rollingUpdate:
+    maxUnavailable: 0  #for replica 1 rollingupdate
+
 phpfpm:
   image:
     repository: harbor.dh1.div1.opendoor.local/smplapp-a/app-otel
@@ -108,6 +112,10 @@ volumes:
     - key: log_compress.conf
       path: log_compress.conf
       mode: 0644
+
+# disable podAntiAffinity for single replica
+affinity:
+  podAntiAffinity:
 
 configMaps:
 - name: cm-fluentbit-config
