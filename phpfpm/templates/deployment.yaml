@@ -234,6 +234,63 @@ spec:
         {{- end }}
       {{- end }}
 
+      {{- if .Values.sidecar.phpExporter.enabled }}
+      ##### php-exporter sidecar
+      - name: {{ .Values.sidecar.phpExporter.name }}
+        securityContext:
+          {{- toYaml .Values.sidecar.phpExporter.securityContext | nindent 10 }}
+        image: "{{ .Values.sidecar.phpExporter.image.repository }}:{{ .Values.sidecar.phpExporter.image.tag | default .CahrtAppVersion}}"
+        imagePullPolicy: {{ .Values.sidecar.phpExporter.image.pullPolicy }}
+        {{- with .Values.sidecar.phpExporter.env }}
+        env:
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+          {{- if .Values.sidecar.phpExporter.extraEnv }}
+          {{- toYaml .Values.sidecar.phpExporter.extraEnv | nindent 8 }}
+          {{- end }}
+        {{- with .Values.sidecar.phpExporter.command }}
+        command:
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.sidecar.phpExporter.args }}
+        args:
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.sidecar.phpExporter.ports }}
+        ports:
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.sidecar.phpExporter.livenessProbe }}
+        livenessProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.sidecar.phpExporter.readinessProbe }}
+        readinessProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.sidecar.phpExporter.startupProbe }}
+        startupProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.sidecar.phpExporter.resources | nindent 10 }}
+        {{- with .Values.sidecar.phpExporter.volumeMounts }}
+        volumeMounts:
+          {{- $prefix := "" -}}
+          {{- if $.Values.volumesAutoPrefix -}}
+            {{- $prefix = include "phpfpm.fullname" $rootval -}}
+          {{- end -}}
+          {{- include "phpfpm.recursiveRename" (dict "prefix" $prefix "values" .) | nindent 8 }}
+        {{- end }}
+        {{- if $.Values.sidecar.phpExporter.extraVolumeMounts -}}
+          {{- $prefix := "" -}}
+          {{- if $.Values.volumesAutoPrefix -}}
+            {{- $prefix = include "phpfpm.fullname" $rootval -}}
+          {{- end -}}
+          {{- include "phpfpm.recursiveRename" (dict "prefix" $prefix "values" $.Values.sidecar.phpExporter.extraVolumeMounts) | nindent 8 }}
+        {{- end }}
+      {{- end }}
+
       {{- with .Values.volumes }}
       ##### Pod shared volumes
       volumes:

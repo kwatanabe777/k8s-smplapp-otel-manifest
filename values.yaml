@@ -126,7 +126,15 @@ nginx:
 
   env:
   - name: NGINX_ENVSUBST_FILTER
-    value: "^OTEL_.*|^FASTCGI_PARAMS_ADDFILE"
+    value: "^NGINX_.*|^OTEL_.*|^FASTCGI_.*"
+  - name: NGINX_LISTEN_PORT
+    value: "8080"
+  - name: NGINX_PROXY_READ_TIMEOUT
+    value: "300"
+  - name: NGINX_PROXY_CONNECT_TIMEOUT
+    value: "300"
+  - name: NGINX_PROXY_SEND_TIMEOUT
+    value: "300"
   - name: OTEL_TRACE
     value: "on"
   - name: OTEL_ENDPOINT
@@ -135,6 +143,8 @@ nginx:
     value: smplapp-nginx
   - name: OTEL_TRACE_CONTEXT
     value: propagate
+  - name: FASTCGI_READ_TIMEOUT
+    value: "300"
   - name: FASTCGI_PARAMS_ADDFILE
     value: fastcgi_params-codeigniter-development
 
@@ -258,7 +268,7 @@ sidecar:
     readinessProbe: {}
     startupProbe: {}
 
-    resources:
+    resourcesg:
       requests:
         memory: "32Mi"
         cpu: "20m"
@@ -275,6 +285,71 @@ sidecar:
       mountPath: /appstore/deletelogs
 
     extraVolumeMounts: []
+
+  phpExporter:
+    enabled: true
+    name: php-fpm-exporter
+    securityContext: {}
+    image:
+      #repository: docker.io/hipages/php-fpm_exporter
+      repository: harbor.dh1.div1.opendoor.local/hub.docker.com/hipages/php-fpm_exporter
+      tag: "2.2.0"
+      pullPolicy: IfNotPresent
+    env:
+    - name: PHP_FPM_WEB_LISTEN_ADDRESS
+      value: ":9253"
+    - name: PHP_FPM_WEB_TELEMETRY_PATH
+      value: "/metrics"
+    - name: PHP_FPM_SCRAPE_URI
+      value: "unix:///var/run/php-fpm/php-fpm.sock;/phpfpm_status"
+    - name: PHP_FPM_FIX_PROCESS_COUNT
+      value: "false"
+    - name: PHP_FPM_LOG_LEVEL
+      value: "info"
+    extraEnv: []
+    ports:
+    - name: metrics-9253
+      containerPort: 9253
+      protocol: TCP
+    livenessProbe:
+      httpGet:
+        path: /
+        port: metrics-9253
+    redinessProbe:
+      httpGet:
+        path: /
+        port: metrics-9253
+    startupProbe: {}
+    resources:
+      requests:
+        memory: "32Mi"
+        cpu: "20m"
+      limits:
+        memory: "128Mi"
+        cpu: "50m"
+    service:
+      portname: http-9253
+      type: ClusterIP
+      port: 9253
+      targetPort: 9253
+      protocol: TCP
+    volumeMounts:
+    - name: fpm-shared
+      mountPath: /var/run/php-fpm
+    extraVolumeMounts: []
+
+    serviceMonitor:
+      enabled: true
+      additionalLabels: {}
+      #namespace: monitoring
+      interval: 30s
+      scrapeTimeout: 10s
+    prometheusRule:
+      enabled: false
+      additionalLabels: {}
+      namespace: ""
+      rules: []
+
 
 # Additional volumes on the output Deployment definition.
 volumes:

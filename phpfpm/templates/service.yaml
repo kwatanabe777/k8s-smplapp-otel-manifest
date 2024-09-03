@@ -17,6 +17,12 @@ spec:
       targetPort: {{ .Values.service.targetPort }}
       protocol: {{ .Values.service.protocol }}
       name: {{ .Values.service.portname }}
+    {{- with .Values.sidecar.phpExporter.enabled }}
+    - port: {{ $.Values.sidecar.phpExporter.service.port }}
+      targetPort: {{ $.Values.sidecar.phpExporter.service.targetPort }}
+      protocol: {{ $.Values.sidecar.phpExporter.service.protocol }}
+      name: {{ $.Values.sidecar.phpExporter.service.portname }}
+    {{- end}}
   {{ with .Values.service.externalTrafficPolicy }}
   externalTrafficPolicy: {{ . }}
   {{- end }}

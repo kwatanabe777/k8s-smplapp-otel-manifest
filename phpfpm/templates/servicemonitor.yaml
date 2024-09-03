@@ -1,0 +1,31 @@
+{{- if and .Values.sidecar.phpExporter.enabled .Values.sidecar.phpExporter.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "phpfpm.fullname" . }}
+  labels:
+{{ include "phpfpm.labels" . | indent 4 }}
+  {{- if .Values.sidecar.phpExporter.serviceMonitor.additionalLabels }}
+{{ toYaml .Values.sidecar.phpExporter.serviceMonitor.additionalLabels | indent 4 }}
+  {{- end }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "phpfpm.fullname" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  endpoints:
+    - port: {{ .Values.sidecar.phpExporter.service.portname }}
+  {{- if .Values.sidecar.phpExporter.serviceMonitor.interval }}
+      interval: {{ .Values.sidecar.phpExporter.serviceMonitor.interval }}
+  {{- end }}
+  {{- if .Values.sidecar.phpExporter.serviceMonitor.scrapeTimeout }}
+      scrapeTimeout: {{ .Values.sidecar.phpExporter.serviceMonitor.scrapeTimeout }}
+  {{- end }}
+  {{- if .Values.sidecar.phpExporter.serviceMonitor.namespace }}
+  namespaceSelector:
+    matchNames:
+    {{- range .Values.sidecar.phpExporter.serviceMonitor.namespace }}
+    - {{ . }}
+    {{- end }}
+  {{- end }}
+{{- end }}
