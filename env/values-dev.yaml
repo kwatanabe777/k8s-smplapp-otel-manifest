@@ -15,8 +15,8 @@ phpfpm:
     value: "0"
   resources:
     requests:
-      memory: "256Mi"
-      cpu: "200m"
+      memory: "128Mi"
+      cpu: "10m"
     limits:
       memory: "1024Mi"
       cpu: "2000m"
@@ -32,7 +32,7 @@ nginx:
   resources:
     requests:
       memory: "64Mi"
-      cpu: "100m"
+      cpu: "10m"
     limits:
       memory: "128Mi"
       cpu: "500m"
@@ -51,5 +51,8 @@ sidecar:
 
 gateways:
   enabled: true
-  hostnames: ["smplapp.priv.dev-k8s.div1.opendoor.local"]
+  httproutes:
+    priv:
+      enabled: true
+      hostnames: ["smplapp.priv.dev-k8s.div1.opendoor.local"]
 

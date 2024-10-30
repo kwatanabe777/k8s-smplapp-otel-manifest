@@ -1,0 +1,21 @@
+{{/* name rename */}}
+{{- $rootval := . -}}
+{{- $prefix := "" -}}
+  {{- $prefix = include "phpfpm.fullname" . -}}
+{{- $KongPlugins := (include "phpfpm.recursiveRename" (dict "prefix" $prefix "values" .Values.customResources.KongPlugin.plugins) | fromYaml ) -}}
+{{- if .Values.customResources.KongPlugin.enabled -}}
+{{- range $name, $manifest := $KongPlugins }}
+  {{- if $manifest.enabled -}}
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: {{ printf "%s-%s" $prefix $name }}
+  namespace: {{ $.Release.Namespace }}
+plugin: {{ $manifest.plugin }}
+config:
+  {{- toYaml $manifest.config | nindent 2 }}
+  {{- end }}
+{{- end }}
+{{- end }}
+

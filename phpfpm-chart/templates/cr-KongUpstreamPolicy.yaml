@@ -1,0 +1,19 @@
+{{/* name rename */}}
+{{- $rootval := . -}}
+{{- $prefix := "" -}}
+  {{- $prefix = include "phpfpm.fullname" . -}}
+{{- $KongUpstreamPolicies := (include "phpfpm.recursiveRename" (dict "prefix" $prefix "values" .Values.customResources.KongUpstreamPolicy.policies) | fromYaml ) -}}
+{{- if $.Values.customResources.KongUpstreamPolicy.enabled -}}
+{{- range $name, $manifest := $KongUpstreamPolicies }}
+  {{- if $manifest.enabled -}}
+---
+apiVersion: configuration.konghq.com/v1beta1
+kind: KongUpstreamPolicy
+metadata:
+  name: {{ printf "%s-%s" $prefix $name }}
+  namespace: {{ $.Release.Namespace }}
+spec:
+  {{- toYaml $manifest.spec | nindent 2 }}
+  {{- end }}
+{{- end }}
+{{- end }}

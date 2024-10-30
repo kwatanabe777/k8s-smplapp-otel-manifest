@@ -93,8 +93,8 @@ phpfpm:
 
   resources:
     requests:
-      memory: "256Mi"
-      cpu: "200m"
+      memory: "128Mi"
+      cpu: "10m"
     limits:
       memory: "1024Mi"
       cpu: "2000m"
@@ -181,7 +181,7 @@ nginx:
   resources:
     requests:
       memory: "64Mi"
-      cpu: "100m"
+      cpu: "10m"
     limits:
       memory: "128Mi"
       cpu: "500m"
@@ -271,7 +271,7 @@ sidecar:
     resourcesg:
       requests:
         memory: "32Mi"
-        cpu: "20m"
+        cpu: "10m"
       limits:
         memory: "32Mi"
         cpu: "50m"
@@ -323,7 +323,7 @@ sidecar:
     resources:
       requests:
         memory: "32Mi"
-        cpu: "20m"
+        cpu: "10m"
       limits:
         memory: "128Mi"
         cpu: "50m"
@@ -378,7 +378,10 @@ extraVolumes: []
 ###############################################################################
 # pods
 #
-podAnnotations: {}
+podAnnotations:
+  # istio ignore php-fpm-exporter port 9253 for generate metrics
+  traffic.sidecar.istio.io/excludeInboundPorts: "9253"
+
 podLabels:
   version: v1
 
@@ -489,7 +492,7 @@ extraConfigMaps: []
 #
 service:
   annotations:
-    konghq.com/upstream-policy: "consistent-hashing"
+    konghq.com/upstream-policy: "smplapp-phpfpm-consistent-hashing"
   portname: http-8080
   type: ClusterIP
   port: 8080
@@ -498,27 +501,102 @@ service:
   externalTrafficPolicy: ""
 
 ###############################################################################
-# GatewayAPI
+# GatewayAPI's HttpRoutes
 #
 gateways:
   enabled: true
-  annotations:
-    konghq.com/plugins: "otl-plugin"
-  parentRefs:
-  - name: kong-priv-gateway
-    namespace: gateway-priv
-    sectionName: proxy-http
-    group: gateway.networking.k8s.io
-    kind: Gateway
-  hostnames: ["smplapp.priv.dev-k8s.div1.opendoor.local"]
-  rules:
-  - matches:
-    - path:
-        type: PathPrefix
-        value: /
-    backendRefs:
-    - name: smplapp-phpfpm
-      kind: Service
-      group: ''
-      port: 8080
-      weight: 100
+  httproutes:
+    priv: # httproute-name suffix
+      enabled: true
+      annotations:
+        konghq.com/plugins: "smplapp-phpfpm-otl-plugin"
+      parentRefs:
+      - name: kong-priv-gateway
+        namespace: gateway-priv
+        sectionName: proxy-http
+        group: gateway.networking.k8s.io
+        kind: Gateway
+      hostnames: ["smplapp.priv.dev-k8s.div1.opendoor.local"]
+      rules:
+      - matches:
+        - path:
+            type: PathPrefix
+            value: /
+        backendRefs:
+        - name: smplapp-phpfpm
+          kind: Service
+          group: ''
+          port: 8080
+          weight: 100
+    glb:
+      enabled: false
+
+###############################################################################
+# Custom Resources
+#
+customResources:
+  KongUpstreamPolicy:
+    enabled: true
+    policies:
+      consistent-hashing:  # name suffix
+        enabled: true
+        spec:
+          #roundRobin, consistent-hashing, least-connections, latency
+          algorithm: consistent-hashing
+          slots: 500
+          #none, input(consumer, ip, path), header, cookie, cookiePath, queryArg, uriCapture
+          hashOn:
+            #header: X-Forwarded-For
+            #header: x-lb
+            #cookie: lb
+            #cookiePath: /
+            input: ip
+          hashOnFallback:
+            # don't dupulicate the hashOn value
+            #input: ip
+            header: X-Forwarded-For
+        
+          healthchecks:
+            active:
+              healthy:
+                interval: 5
+                successes: 3
+              httpPath: /healthcheck
+              type: http
+              unhealthy:
+                httpFailures: 1
+                interval: 5
+            passive:
+              healthy:
+                successes: 3
+              unhealthy:
+                httpFailures: 3
+      
+  KongPlugin:
+    enabled: true
+    plugins:
+      otl-plugin:  # name suffix
+        enabled: true
+        # ref:
+        #  https://docs.konghq.com/hub/kong-inc/opentelemetry/
+        #  https://docs.konghq.com/hub/kong-inc/opentelemetry/configuration/
+        # context: KongPlugin/KongClusterPlugin
+        plugin: opentelemetry
+        config:
+          # jaeger-collector directory
+          #endpoint: "http://jaeger-collector.tracing.svc.cluster.local:4318/v1/traces"
+        
+          # open-telemetry-collector
+          endpoint: "http://otel-collector.tracing.svc.cluster.local:4318/v1/traces"
+        
+          #resource_attributes:
+          #  service.name: "echosample"
+          connect_timeout: 1000
+          send_timeout: 5000
+          read_timeout: 5000
+          header_type: "b3"    #default: preserve(propagates the incoming trace context)
+          # 0 to 1 default: tracing_sampling_rate from kong.conf (>=kong gateway v3.6)
+          sampling_rate: 0.01
+          #sampling_rate: 1.00
+          #http_response_header_for_traceid:  "x-b3-traceid" # return to client this header for debug
+      

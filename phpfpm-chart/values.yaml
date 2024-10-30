@@ -150,6 +150,9 @@ nginx:
     httpGet:
       path: /healthcheck
       port: liveness-port
+      httpHeaders:
+      - name: X-B3-Sampled
+        value: "0"
     initialDelaySeconds: 10
     periodSeconds: 10
     timeoutSeconds: 3
@@ -489,27 +492,33 @@ service:
   sessionAffinity: None
 
 ###############################################################################
-# GatewayAPI
+# GatewayAPI's HttpRoutes
 #
 gateways:
-  enabled: true
-  annotations:
-    konghq.com/plugins: "otl-plugin"
-  parentRefs:
-  - name: kong-priv-gateway
-    namespace: gateway-priv
-    sectionName: proxy-http
-    group: gateway.networking.k8s.io
-    kind: Gateway
-  hostnames: ["smplapp.priv.local-k8s.div1.opendoor.local"]
-  rules:
-  - matches:
-    - path:
-        type: PathPrefix
-        value: /
-    backendRefs:
-    - name: smplapp-phpfpm
-      kind: Service
-      group: ''
-      port: 8080
-      weight: 100
+  enabled: false
+  httproutes:
+    httproutename-suffix:
+      enabled: false
+    #  annotations:
+    #  parentRefs:
+    #  hostnames:
+    #  rules
+
+###############################################################################
+# Custom Resources
+#  current supported resources: KongPlugin, KongUpstreamPolicy
+customResources:
+  KongUpstreamPolicy:
+    enabled: false
+    policies:
+      policyname-suffix:
+        enabled: false
+        spec: {}
+
+  KongPlugin:
+    enabled: false
+    plugins:
+      pluginname-suffix:
+        enabled: false
+        plugin: opentelemetry
+        config: {}

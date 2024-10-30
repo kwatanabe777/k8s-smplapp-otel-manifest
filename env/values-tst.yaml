@@ -1,12 +1,7 @@
-##### for local cluster
-replicaCount: 1
+replicaCount: 3
 
 autoscaling:
   enabled: false
-
-strategy:
-  rollingUpdate:
-    maxUnavailable: 0  #for replica 1 rollingupdate
 
 phpfpm:
   image:
@@ -14,22 +9,10 @@ phpfpm:
     tag: "latest"
     pullPolicy: Always
   extraEnv:
-  - name: DEV_ENABLED
-    value: "1"
   - name: XDEBUG_ENABLED
     value: "0"
-
-  - name: APP_JHOTEL_DBHOST
-    value: "p-ts-schdb25.div1.opendoor.local"
-  - name: APP_JHOTEL_DBPORT
-    value: "5432"
-  - name: APP_JHOTEL_DBNAME
-    value: "ref_jhotel"
-  - name: APP_JHOTEL_DBUSER
-    value: "ref_jhotel_ref"
-  - name: APP_JHOTEL_DBPASS
-    value: "ref_jhotel_ref8707"
-
+  - name: DEV_ENABLED
+    value: "0"
   resources:
     requests:
       memory: "128Mi"
@@ -43,7 +26,7 @@ nginx:
     repository: harbor.dh1.div1.opendoor.local/smplapp-a/web-otel
     tag: "latest"
     pullPolicy: Always
-  extaEnv:
+  extraEnv:
   - name: FASTCGI_PARAMS_ADDFILE
     value: fastcgi_params-codeigniter-development
   resources:
@@ -66,14 +49,10 @@ sidecar:
   helper:
     enabled: true
 
-# disable podAntiAffinity for single replica
-affinity:
-  podAntiAffinity:
-
 gateways:
   enabled: true
   httproutes:
     priv:
       enabled: true
-      hostnames: ["smplapp.priv.local-k8s.div1.opendoor.local"]
+      hostnames: ["smplapp.priv.tst-k8s.div1.opendoor.local"]
 

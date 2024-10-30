@@ -26,13 +26,13 @@ spec:
   {{ with .Values.service.externalTrafficPolicy }}
   externalTrafficPolicy: {{ . }}
   {{- end }}
-  {{ with .Values.service.loadBalancerIP }}
+  {{ with .Values.service.loadBalancerClass }}
   loadBalancerClass: {{ . }}
   {{- end }}
   {{ with .Values.service.loadBalancerIP }}
   loadBalancerIP: {{ . }}
   {{- end }}
-  {{- with .Values.service.loadBalancerSourceRanges }}
+  {{- with .Values.service.sessionAffinity }}
   sessionAffinity: {{ . }}
   {{- end }}
   selector:

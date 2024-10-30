@@ -2,3 +2,4 @@ environments:
   local:
   local-dev:
   dev:
+  tst:

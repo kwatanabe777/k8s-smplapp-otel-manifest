@@ -5,18 +5,10 @@ releases:
   - name: smplapp
     namespace: smplapp
     createNamespace: false
-    chart: ./phpfpm
+    chart: ./phpfpm-chart
     #version: 0.1.0
     values:
       #- "./env-merge.yaml.gotmpl"
       - "./values.yaml"
       - "./env/values-{{ .Environment.Name }}.yaml"
 
-  - name: smplapp-misc
-    namespace: smplapp
-    createNamespace: false
-    chart: ./misc
-#    #version: 0.1.0
-    values:
-#      #- "./env-merge.yaml.gotmpl"
-#      #- "./env/values-{{ .Environment.Name }}.yaml"
