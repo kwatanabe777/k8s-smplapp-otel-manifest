@@ -1,39 +1,58 @@
+{{/* name rename */}}
+{{- $rootval := . -}}
+{{- $releaseNamespace := .Release.Namespace -}}
+{{- $prefix := "" -}}
+  {{- $prefix = include "phpfpm.fullname" . -}}
+{{- $services := .Values.service -}}
+{{- range $name, $manifest := $services }}
+  {{- if $manifest.enabled }}
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "phpfpm.fullname" . }}
-  namespace: {{ .Release.Namespace }}
-  {{- with .Values.service.annotations }}
+  {{- if and (eq $name "default") (not $manifest.nameOverride) }}
+  name: {{ include "phpfpm.fullname" $rootval }}
+  {{- else }}
+    {{- if $manifest.nameOverride }}
+  name: {{ $manifest.nameOverride }}
+    {{- else }}
+  name: {{ printf "%s-%s" $prefix $name }}
+    {{- end }}
+  {{- end }}
+  namespace: {{ $releaseNamespace }}
+  {{- with $manifest.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
   labels:
-    {{- include "phpfpm.labels" . | nindent 4 }}
+    {{- include "phpfpm.labels" $rootval | nindent 4 }}
 spec:
-  type: {{ .Values.service.type }}
+  type: {{ $manifest.type }}
   ports:
-    - port: {{ .Values.service.port }}
-      targetPort: {{ .Values.service.targetPort }}
-      protocol: {{ .Values.service.protocol }}
-      name: {{ .Values.service.portname }}
-    {{- with .Values.sidecar.phpExporter.enabled }}
+    - port: {{ $manifest.port }}
+      targetPort: {{ $manifest.targetPort }}
+      protocol: {{ $manifest.protocol }}
+      name: {{ $manifest.portname }}
+    {{- with and $.Values.sidecar.phpExporter.enabled  (eq $name "default") }}
     - port: {{ $.Values.sidecar.phpExporter.service.port }}
       targetPort: {{ $.Values.sidecar.phpExporter.service.targetPort }}
       protocol: {{ $.Values.sidecar.phpExporter.service.protocol }}
       name: {{ $.Values.sidecar.phpExporter.service.portname }}
     {{- end}}
-  {{ with .Values.service.externalTrafficPolicy }}
+  {{ with $manifest.externalTrafficPolicy }}
   externalTrafficPolicy: {{ . }}
   {{- end }}
-  {{ with .Values.service.loadBalancerClass }}
+  {{ with $manifest.loadBalancerClass }}
   loadBalancerClass: {{ . }}
   {{- end }}
-  {{ with .Values.service.loadBalancerIP }}
+  {{ with $manifest.loadBalancerIP }}
   loadBalancerIP: {{ . }}
   {{- end }}
-  {{- with .Values.service.sessionAffinity }}
+  {{- with $manifest.sessionAffinity }}
   sessionAffinity: {{ . }}
   {{- end }}
   selector:
-    {{- include "phpfpm.selectorLabels" . | nindent 4 }}
+    {{- include "phpfpm.selectorLabels" $rootval | nindent 4 }}
+  {{- end }}
+{{- end }}
+

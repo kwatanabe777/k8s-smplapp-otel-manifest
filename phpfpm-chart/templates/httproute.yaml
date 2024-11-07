@@ -1,4 +1,6 @@
 {{- $rootval := . -}}
+{{- $prefix := "" -}}
+  {{- $prefix = include "phpfpm.fullname" . -}}
 {{- if .Values.gateways.enabled }}
 {{- range $name, $route := .Values.gateways.httproutes }}
   {{- if $route.enabled }}
@@ -6,7 +8,11 @@
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: {{ printf "%s-%s" (include "phpfpm.fullname" $rootval) $name }}
+  {{- if $route.nameOverride }}
+  name: {{ $route.nameOverride }}
+  {{- else }}
+  name: {{ printf "%s-%s" $prefix $name }}
+  {{- end }}
   namespace: {{ $.Release.Namespace }}
   labels:
     {{- include "phpfpm.labels" $rootval | nindent 4 }}

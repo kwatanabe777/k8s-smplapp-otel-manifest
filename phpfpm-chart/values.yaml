@@ -93,8 +93,8 @@ phpfpm:
 
   resources:
     requests:
-      memory: "256Mi"
-      cpu: "200m"
+      memory: "128Mi"
+      cpu: "10m"
     limits:
       memory: "1024Mi"
       cpu: "2000m"
@@ -174,7 +174,7 @@ nginx:
   resources:
     requests:
       memory: "64Mi"
-      cpu: "100m"
+      cpu: "10m"
     limits:
       memory: "128Mi"
       cpu: "500m"
@@ -218,7 +218,7 @@ sidecar:
     resources:
       requests:
         memory: "64Mi"
-        cpu: "50m"
+        cpu: "10m"
       limits:
         memory: "128Mi"
         cpu: "100m"
@@ -264,7 +264,7 @@ sidecar:
     resources:
       requests:
         memory: "32Mi"
-        cpu: "20m"
+        cpu: "10m"
       limits:
         memory: "32Mi"
         cpu: "50m"
@@ -315,7 +315,7 @@ sidecar:
     resources:
       requests:
         memory: "32Mi"
-        cpu: "20m"
+        cpu: "10m"
       limits:
         memory: "128Mi"
         cpu: "50m"
@@ -488,18 +488,37 @@ extraConfigMaps: []
 
 ###############################################################################
 # Service
-#
+#  multiple services can be defined
+  # multiple service is definable
+  # to avoid kong-gateway-controller's upstreampolicy confilict,
+  # split the service-name by gateway
 service:
-  annotations: {}
-  portname: http-8080
-  type: ClusterIP
-  port: 8080
-  targetPort: 8080
-  protocol: TCP
-  externalTrafficPolicy: ""
-  loadBalancerIP: ""
-  loadBalancerClass: ""
-  sessionAffinity: None
+  default: # default service.name is releaseName
+    enabled: false
+    nameOverride: # service-name override
+    annotations: {}
+    portname: http-8080
+    type: ClusterIP
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+    externalTrafficPolicy: ""
+    loadBalancerIP: ""
+    loadBalancerClass: ""
+    sessionAffinity: None
+  glb: # extra service, default service-name suffix
+    enabled: false
+    nameOverride: # service-name override
+    annotations: {}
+    portname: http-8080
+    type: ClusterIP
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+    externalTrafficPolicy: ""
+    loadBalancerIP: ""
+    loadBalancerClass: ""
+    sessionAffinity: None
 
 ###############################################################################
 # GatewayAPI's HttpRoutes
@@ -509,6 +528,7 @@ gateways:
   httproutes:
     httproutename-suffix:
       enabled: false
+      nameOverride: # gateway-name override
     #  annotations:
     #  parentRefs:
     #  hostnames:
@@ -523,6 +543,7 @@ customResources:
     policies:
       policyname-suffix:
         enabled: false
+        nameOverride: # policy-name override
         spec: {}
 
   KongPlugin:
@@ -530,5 +551,7 @@ customResources:
     plugins:
       pluginname-suffix:
         enabled: false
+        nameOverride: # plugin-name override
         plugin: opentelemetry
         config: {}
+

@@ -501,14 +501,20 @@ extraConfigMaps: []
 # Service
 #
 service:
-  annotations:
-    konghq.com/upstream-policy: "smplapp-phpfpm-consistent-hashing"
-  portname: http-8080
-  type: ClusterIP
-  port: 8080
-  targetPort: 8080
-  protocol: TCP
-  externalTrafficPolicy: ""
+  # multiple service is definable
+  # to avoid kong-gateway-controller's upstreampolicy confilict,
+  # split the service-name by gateway
+  default:
+    enabled: true
+    nameOverride: # service-name override
+    annotations:
+      konghq.com/upstream-policy: "smplapp-phpfpm-consistent-hashing"
+    portname: http-8080
+    type: ClusterIP
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+    externalTrafficPolicy: ""
 
 ###############################################################################
 # GatewayAPI's HttpRoutes
@@ -518,6 +524,7 @@ gateways:
   httproutes:
     priv: # httproute-name suffix
       enabled: true
+      nameOverride: # httproute-name override
       annotations:
         konghq.com/plugins: "smplapp-phpfpm-otl-plugin"
       parentRefs:
@@ -550,6 +557,7 @@ customResources:
     policies:
       consistent-hashing:  # name suffix
         enabled: true
+        nameOverride: # policy-name override
         spec:
           #roundRobin, consistent-hashing, least-connections, latency
           algorithm: consistent-hashing
@@ -587,6 +595,7 @@ customResources:
     plugins:
       otl-plugin:  # name suffix
         enabled: true
+        nameOverride: # plugin-name override
         # ref:
         #  https://docs.konghq.com/hub/kong-inc/opentelemetry/
         #  https://docs.konghq.com/hub/kong-inc/opentelemetry/configuration/
