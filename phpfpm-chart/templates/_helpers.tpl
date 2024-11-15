@@ -108,6 +108,28 @@ Recursive Rename
 {{- end -}}
 
 
+{{/* Env Converter
+  Dict of envs
+  key_name1: value1
+  key_name2: value2
 
+  will be converted to
+
+  List of envs
+  - name: KEY_NAME1
+    value: value1
+  - name: KEY_NAME2
+    value: value2
+  lower case key name will be upper case key name
+*/}}
+{{- define "phpfpm.envConvert" -}}
+  {{- $envsDict := . -}}
+  {{- $envsList := list -}}
+  {{- range $k, $v := $envsDict -}}
+    {{- $tmpDict := dict "name" ($k | upper) "value" $v -}}
+    {{- $envsList = append $envsList $tmpDict -}}
+  {{- end -}}
+  {{- $envsList | toYaml -}}
+{{- end -}}
 
 

@@ -13,27 +13,16 @@ phpfpm:
     repository: harbor.dh1.div1.opendoor.local/smplapp-a/app-otel
     tag: "latest"
     pullPolicy: Always
-  extraEnv:
-  - name: DEV_ENABLED
-    value: "1"
-  - name: XDEBUG_ENABLED
-    value: "0"
-  - name: XDEBUG_CLIENT_HOST
-    value: "host.k3d.internal"
-  - name: XDEBUG_CLIENT_PORT
-    value: "9003"
-
-  - name: APP_JHOTEL_DBHOST
-    value: "p-ts-schdb25.div1.opendoor.local"
-  - name: APP_JHOTEL_DBPORT
-    value: "5432"
-  - name: APP_JHOTEL_DBNAME
-    value: "ref_jhotel"
-  - name: APP_JHOTEL_DBUSER
-    value: "ref_jhotel_ref"
-  - name: APP_JHOTEL_DBPASS
-    value: "ref_jhotel_ref8707"
-
+  env:
+    dev_enabled: "1"
+    xdebug_enabled: "0"
+    xdebug_client_host: "host.k3d.internal"
+    xdebug_client_port: "9003"
+    app_jhotel_dbhost: "p-ts-schdb25.div1.opendoor.local"
+    app_jhotel_dbport: "5432"
+    app_jhotel_dbname: "ref_jhotel"
+    app_jhotel_dbuser: "ref_jhotel_ref"
+    app_jhotel_dbpass: "ref_jhotel_ref8707"
   resources:
     requests:
       memory: "128Mi"
@@ -54,9 +43,8 @@ nginx:
     repository: harbor.dh1.div1.opendoor.local/smplapp-a/web-otel
     tag: "latest"
     pullPolicy: Always
-  extaEnv:
-  - name: FASTCGI_PARAMS_ADDFILE
-    value: fastcgi_params-codeigniter-development
+  env:
+    fastcgi_params_addfile: "fastcgi_params-codeigniter-development"
   resources:
     requests:
       memory: "64Mi"
@@ -75,8 +63,8 @@ sidecar:
     enabled: true
     image:
       repository: harbor.dh1.div1.opendoor.local/hub.docker.com/fluent/fluent-bit
-      #tag: "3.0.7-debug"
-      tag: "3.0.7"
+      #tag: "3.1.10-debug"
+      #tag: "3.1.10"
       pullPolicy: IfNotPresent
     volumeMounts:
     - name: webapp

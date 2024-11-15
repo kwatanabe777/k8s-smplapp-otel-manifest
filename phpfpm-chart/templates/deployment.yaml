@@ -40,7 +40,7 @@ spec:
         imagePullPolicy: {{ .Values.phpfpm.image.pullPolicy }}
         {{- with .Values.phpfpm.env }}
         env:
-          {{- toYaml . | nindent 8 }}
+          {{- include "phpfpm.envConvert" . |  nindent 8 }}
         {{- end }}
         {{- if .Values.phpfpm.extraEnv }}
           {{- toYaml .Values.phpfpm.extraEnv | nindent 8 }}
@@ -87,7 +87,7 @@ spec:
         imagePullPolicy: {{ .Values.nginx.image.pullPolicy }}
         {{- with .Values.nginx.env }}
         env:
-          {{- toYaml . | nindent 8 }}
+          {{- include "phpfpm.envConvert" . |  nindent 8 }}
         {{- end }}
         {{- if .Values.nginx.extraEnv }}
           {{- toYaml .Values.nginx.extraEnv | nindent 8 }}
@@ -136,7 +136,7 @@ spec:
         imagePullPolicy: {{ .Values.sidecar.fluentBit.image.pullPolicy }}
         {{- with .Values.sidecar.fluentBit.env }}
         env:
-          {{- toYaml . | nindent 8 }}
+          {{- include "phpfpm.envConvert" . |  nindent 8 }}
         {{- end }}
           {{- if .Values.sidecar.fluentBit.extraEnv }}
           {{- toYaml .Values.sidecar.fluentBit.extraEnv | nindent 8 }}
@@ -186,7 +186,7 @@ spec:
         imagePullPolicy: {{ .Values.sidecar.helper.image.pullPolicy }}
         {{- with .Values.sidecar.helper.env }}
         env:
-          {{- toYaml . | nindent 8 }}
+          {{- include "phpfpm.envConvert" . |  nindent 8 }}
         {{- end }}
           {{- if .Values.sidecar.helper.extraEnv }}
           {{- toYaml .Values.sidecar.helper.extraEnv | nindent 8 }}
@@ -243,7 +243,7 @@ spec:
         imagePullPolicy: {{ .Values.sidecar.phpExporter.image.pullPolicy }}
         {{- with .Values.sidecar.phpExporter.env }}
         env:
-          {{- toYaml . | nindent 8 }}
+          {{- include "phpfpm.envConvert" . |  nindent 8 }}
         {{- end }}
           {{- if .Values.sidecar.phpExporter.extraEnv }}
           {{- toYaml .Values.sidecar.phpExporter.extraEnv | nindent 8 }}

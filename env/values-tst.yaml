@@ -8,11 +8,9 @@ phpfpm:
     repository: harbor.dh1.div1.opendoor.local/smplapp-a/app-otel
     tag: "latest"
     pullPolicy: Always
-  extraEnv:
-  - name: XDEBUG_ENABLED
-    value: "0"
-  - name: DEV_ENABLED
-    value: "0"
+  env:
+    xdebug_enabled: "0"
+    dev_enabled: "0"
   resources:
     requests:
       memory: "128Mi"
@@ -26,9 +24,8 @@ nginx:
     repository: harbor.dh1.div1.opendoor.local/smplapp-a/web-otel
     tag: "latest"
     pullPolicy: Always
-  extraEnv:
-  - name: FASTCGI_PARAMS_ADDFILE
-    value: fastcgi_params-codeigniter-development
+  env:
+    fastcgi_params_addfile: "fastcgi_params-codeigniter-development"
   resources:
     requests:
       memory: "64Mi"
@@ -42,8 +39,8 @@ sidecar:
     enabled: true
     image:
       repository: harbor.dh1.div1.opendoor.local/hub.docker.com/fluent/fluent-bit
-      #tag: "3.0.7-debug"
-      tag: "3.0.7"
+      #tag: "3.1.10-debug"
+      #tag: "3.1.10"
       pullPolicy: IfNotPresent
 
   helper:

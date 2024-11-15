@@ -47,42 +47,24 @@ phpfpm:
     repository: harbor.dh1.div1.opendoor.local/smplapp-a/app-otel
     tag: "latest"
     pullPolicy: Always
-
   env:
-  - name: TZ
-    value: GMT-9
-  - name: OTEL_PHP_EXCLUDED_URLS
-    value: "healthz,healthcheck"
-  - name: OTEL_PHP_DETECTORS
-    value: all
-  - name: OTEL_PHP_INTERNAL_METRICS_ENABLED
-    value: "true"
-  - name: OTEL_PHP_AUTOLOAD_ENABLED
-    value: "true"
-  - name: OTEL_SERVICE_NAME
-    value: smplapp-app
-  - name: OTEL_TRACES_EXPORTER
-    value: otlp
-  - name: OTEL_METRICS_EXPORTER
-    value: none
-  - name: OTEL_EXPORTER_OTLP_PROTOCOL
-    value: grpc
-  - name: OTEL_EXPORTER_OTLP_ENDPOINT
-    value: http://otel-collector.tracing.svc.cluster.local:4317
-  #- name: OTEL_EXPORTER_OTLP_PROTOCOL
-  #  #value: http/json
-  #  value: http/protobuf
-  #- name: OTEL_EXPORTER_OTLP_ENDPOINT
-  #  value: http://otel-collector.tracing.svc.cluster.local:4318
-  #- name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
-  #  value: http://otel-collector.tracing.svc.cluster.local:4317/v1/traces
-  #- name: OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
-  #  value: http://otel-collector.tracing.svc.cluster.local:4317/v1/metrics
-  - name: OTEL_LOGS_EXPORTER
-    value: none
-  - name: OTEL_PROPAGATORS
-    value: "baggage,tracecontext"
-
+    tz: "GMT-9"
+    otel_php_excluded_urls: "healthz,healthcheck"
+    otel_php_detectors: "all"
+    otel_php_internal_metrics_enabled: "true"
+    otel_php_autoload_enabled: "true"
+    otel_service_name: "smplapp-app"
+    otel_traces_exporter: "otlp"
+    otel_metrics_exporter: "none"
+    otel_exporter_otlp_protocol: "grpc"
+    otel_exporter_otlp_endpoint: "http://otel-collector.tracing.svc.cluster.local:4317"
+    #otel_exporter_otlp_protocol: "http/json"
+    #otel_exporter_otlp_protocol: "http/protobuf"
+    #otel_exporter_otlp_endpoint: "http://otel-collector.tracing.svc.cluster.local:4318"
+    #otel_exporter_otlp_traces_endpoint: "http://otel-collector.tracing.svc.cluster.local:4317/v1/traces"
+    #otel_exporter_otlp_metrics_endpoint: "http://otel-collector.tracing.svc.cluster.local:4317/v1/metrics"
+    otel_logs_exporter: "none"
+    otel_propagators: "baggage,tracecontext"
   extraEnv: []
 
   ports: []
@@ -123,31 +105,18 @@ nginx:
     repository: harbor.dh1.div1.opendoor.local/smplapp-a/web-otel
     tag: "latest"
     pullPolicy: Always
-
   env:
-  - name: NGINX_ENVSUBST_FILTER
-    value: "^NGINX_.*|^OTEL_.*|^FASTCGI_.*"
-  - name: NGINX_LISTEN_PORT
-    value: "8080"
-  - name: NGINX_PROXY_READ_TIMEOUT
-    value: "300"
-  - name: NGINX_PROXY_CONNECT_TIMEOUT
-    value: "300"
-  - name: NGINX_PROXY_SEND_TIMEOUT
-    value: "300"
-  - name: OTEL_TRACE
-    value: "on"
-  - name: OTEL_ENDPOINT
-    value: otel-collector.tracing.svc.cluster.local:4317
-  - name: OTEL_SERVICE_NAME
-    value: smplapp-nginx
-  - name: OTEL_TRACE_CONTEXT
-    value: propagate
-  - name: FASTCGI_READ_TIMEOUT
-    value: "300"
-  - name: FASTCGI_PARAMS_ADDFILE
-    value: fastcgi_params-codeigniter-development
-
+    nginx_envsubst_filter: "^NGINX_.*|^OTEL_.*|^FASTCGI_.*"
+    nginx_listen_port: "8080"
+    nginx_proxy_read_timeout: "300"
+    nginx_proxy_connect_timeout: "300"
+    nginx_proxy_send_timeout: "300"
+    otel_trace: "on"
+    otel_endpoint: "otel-collector.tracing.svc.cluster.local:4317"
+    otel_service_name: "smplapp-nginx"
+    otel_trace_context: "propagate"
+    fastcgi_read_timeout: "300"
+    fastcgi_params_addfile: "fastcgi_params-codeigniter-development"
   extraEnv: []
 
   ports:
@@ -206,14 +175,11 @@ sidecar:
  
     image:
       repository: harbor.dh1.div1.opendoor.local/hub.docker.com/fluent/fluent-bit
-      #tag: "3.0.7-debug"
-      tag: "3.0.7"
+      #tag: "3.1.10-debug"
+      tag: "3.1.10"
       pullPolicy: IfNotPresent
-
     env:
-    - name: TZ
-      value: GMT-9
-
+      tz: "GMT-9"
     extraEnv: []
 
     ports: []
@@ -252,11 +218,8 @@ sidecar:
       repository: harbor.dh1.div1.opendoor.local/hub.docker.com/ubuntu
       tag: "24.04"
       pullPolicy: IfNotPresent
-
     env:
-    - name: TZ
-      value: GMT-9
-
+      tz: "GMT-9"
     extraEnv: []
 
     command: ["bash", "-c", "--"]
@@ -296,16 +259,11 @@ sidecar:
       tag: "2.2.0"
       pullPolicy: IfNotPresent
     env:
-    - name: PHP_FPM_WEB_LISTEN_ADDRESS
-      value: ":9253"
-    - name: PHP_FPM_WEB_TELEMETRY_PATH
-      value: "/metrics"
-    - name: PHP_FPM_SCRAPE_URI
-      value: "unix:///var/run/php-fpm/php-fpm.sock;/phpfpm_status"
-    - name: PHP_FPM_FIX_PROCESS_COUNT
-      value: "false"
-    - name: PHP_FPM_LOG_LEVEL
-      value: "info"
+      php_fpm_web_listen_address: ":9253"
+      php_fpm_web_telemetry_path: "/metrics"
+      php_fpm_scrape_uri: "unix:///var/run/php-fpm/php-fpm.sock;/phpfpm_status"
+      php_fpm_fix_process_count: "false"
+      php_fpm_log_level: "info"
     extraEnv: []
     ports:
     - name: metrics-9253
@@ -448,19 +406,19 @@ configMaps:
         Mem_Buf_Limit     10MB
         Path              /appstore/writable/logs/*.log,/appstore/writable/logs/**/*.log,/appstore/writable/logs/**/**/*.log
         Path_Key          filepath
-        #Parser            codeigniter
+        #Parser            codeigniter_timeparser
         Tag               smplapp
         Ignore_Older      2d
         Db                /appstore/logs.db
       
-      #[FILTER]
-      #  Name              parser
-      #  Match             *
-      #  Key_Name          filepath
-      #  Parser            codeigniter_timeparser
-      #  Parser            filepath_extractor
-      #  Preserve_Key      On
-      #  Reserve_Data      On
+      [FILTER]
+        Name              parser
+        Match             *
+        Key_Name          filepath
+        #Parser            codeigniter_timeparser
+        Parser            dirname_extractor
+        Preserve_Key      On
+        Reserve_Data      On
       
       [OUTPUT]
         Name              stdout
@@ -470,17 +428,24 @@ configMaps:
         Match             *
         Host              loki-gateway.logbase.svc.cluster.local
         port              80
-        labels            job=fluentbit,app=smplapp,filepath=$filepath
+        #labels            job=fluentbit,app=smplapp,dirname=$dirname,filepath=$filepath
+        labels            job=fluentbit,app=smplapp,dirname=$dirname
         auto_kubernetes_labels On
         line_format       json
+        Retry_Limit       False
       
     parsers.conf: |-
       [PARSER]
-        Name              filepath_extractor
+        Name              dirname_extractor
         Format            regex
-        Regex             ^(?<filepath>.*)$
+        # dirnam only
+        Regex             ^(?<dirname>.*/)[^/]*$
       [PARSER]
         Name              codeigniter_timeparser
+        #Format            regex
+        #Regex             ^(?<time>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}).*$
+        #Time_Key          time
+        #Time_Format       %Y-%m-%d %H:%M:%S
 
 - name: cm-delete-logs-scripts
   data:
