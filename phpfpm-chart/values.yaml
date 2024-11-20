@@ -122,13 +122,11 @@ nginx:
   ports:
   - name: http-port
     containerPort: 8080
-  - name: liveness-port
-    containerPort: 8080
 
   livenessProbe:
     httpGet:
       path: /healthcheck
-      port: liveness-port
+      port: http-port
       httpHeaders:
       - name: X-B3-Sampled
         value: "0"
@@ -139,14 +137,14 @@ nginx:
   readinessProbe:
     httpGet:
       path: /healthcheck
-      port: liveness-port
+      port: http-port
     initialDelaySeconds: 5
     periodSeconds: 5
     timeoutSeconds: 3
   startupProbe:
     httpGet:
       path: /healthcheck
-      port: liveness-port
+      port: http-port
     failureThreshold: 6
     periodSeconds: 10
 
