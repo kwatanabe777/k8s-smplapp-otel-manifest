@@ -111,7 +111,8 @@ nginx:
     nginx_proxy_read_timeout: "300"
     nginx_proxy_connect_timeout: "300"
     nginx_proxy_send_timeout: "300"
-    otel_trace: "on"
+    #otel_trace: "on"
+    otel_trace: "$otel_parent_sampled"  # parent is gateway or ingress
     otel_endpoint: "otel-collector.tracing.svc.cluster.local:4317"
     otel_service_name: "smplapp-nginx"
     otel_trace_context: "propagate"
